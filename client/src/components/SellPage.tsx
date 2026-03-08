@@ -94,10 +94,18 @@ export function SellPage() {
             Copy Link
           </button>
 
+          <Link
+            to="/dashboard"
+            className="block w-full mt-6 py-3 px-6 bg-slate-800 border border-slate-600 
+                     text-white font-semibold rounded-xl hover:bg-slate-700 transition-colors text-center"
+          >
+            Go to Dashboard
+          </Link>
+
           <button
             onClick={() => stash.reset()}
-            className="block w-full mt-6 py-3 px-6 border border-slate-600 
-                     text-slate-300 rounded-xl hover:bg-slate-800 transition-colors"
+            className="block w-full mt-3 py-3 px-6 text-slate-400 
+                     hover:text-slate-200 transition-colors text-sm"
           >
             Create Another Stash
           </button>
