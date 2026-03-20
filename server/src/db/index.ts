@@ -193,116 +193,152 @@ if (
   process.exit(1);
 }
 
-// One-time migration: encrypt any plaintext seller tokens still in the DB.
-// Plaintext Cashu tokens always start with "cashu". We re-encrypt them so
-// they are no longer readable to anyone with raw DB access.
+// --- Versioned migrations ---
+// Each migration runs once, tracked by schema_version table.
+// Never sniff content to detect encrypted vs plaintext — version tracking is deterministic.
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schema_version (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL DEFAULT 0
+  );
+  INSERT OR IGNORE INTO schema_version (id, version) VALUES (1, 0);
+`);
+
+const currentVersion = (
+  db.prepare('SELECT version FROM schema_version WHERE id = 1').get() as { version: number }
+).version;
+
 {
   const { encrypt, decrypt } = await import('../lib/encryption.js');
 
-  // Key-rotation safety: verify the current key can decrypt ALL existing ciphertext.
-  // If ops rotated the key without re-encrypting rows, dashboard/earnings/withdraw
-  // would crash at runtime. Checking every row catches mixed-key DBs too.
-  const encryptedRows = db
-    .prepare(
-      `SELECT id, seller_token FROM payments
-       WHERE seller_token IS NOT NULL AND seller_token NOT LIKE 'cashu%'`
-    )
-    .all() as Array<{ id: string; seller_token: string }>;
+  // Key-rotation safety check (runs every startup, not a migration).
+  // Verifies TOKEN_ENCRYPTION_KEY can decrypt all existing encrypted data.
+  // If ops rotated the key without re-encrypting, we fail fast instead of serving garbage.
+  if (currentVersion >= 1) {
+    const encryptedTokens = db
+      .prepare(
+        `SELECT id, seller_token FROM payments
+         WHERE seller_token IS NOT NULL AND seller_token NOT LIKE 'cashu%'`
+      )
+      .all() as Array<{ id: string; seller_token: string }>;
 
-  for (const row of encryptedRows) {
-    try {
-      decrypt(row.seller_token);
-    } catch {
-      console.error(
-        `❌ TOKEN_ENCRYPTION_KEY cannot decrypt token in payment ${row.id}.\n` +
-          '   Did you rotate the key? Restore the previous key or re-encrypt the rows.'
-      );
-      process.exit(1);
-    }
-  }
-
-  const plaintextRows = db
-    .prepare(
-      `SELECT id, seller_token FROM payments WHERE seller_token IS NOT NULL AND seller_token LIKE 'cashu%'`
-    )
-    .all() as Array<{ id: string; seller_token: string }>;
-
-  if (plaintextRows.length > 0) {
-    const update = db.prepare(`UPDATE payments SET seller_token = ? WHERE id = ?`);
-    const migrateAll = db.transaction(() => {
-      for (const row of plaintextRows) {
-        update.run(encrypt(row.seller_token), row.id);
-      }
-    });
-    migrateAll();
-    console.log(`🔐 Encrypted ${plaintextRows.length} plaintext seller token(s) in DB.`);
-  }
-}
-
-// One-time migration: encrypt any plaintext secret_key values in stashes.
-// Encrypted values use "nonce:ciphertext" format (contain ":").
-// Plaintext keys are hex strings without ":".
-{
-  const { encrypt, decrypt } = await import('../lib/encryption.js');
-
-  // Verify existing encrypted keys are decryptable (key-rotation safety)
-  const encryptedKeys = db
-    .prepare(`SELECT id, secret_key FROM stashes WHERE secret_key LIKE '%:%'`)
-    .all() as Array<{ id: string; secret_key: string }>;
-
-  for (const row of encryptedKeys) {
-    try {
-      decrypt(row.secret_key);
-    } catch {
-      console.error(
-        `❌ TOKEN_ENCRYPTION_KEY cannot decrypt secret_key in stash ${row.id}.\n` +
-          '   Did you rotate the key? Restore the previous key or re-encrypt the rows.'
-      );
-      process.exit(1);
-    }
-  }
-
-  const plaintextKeys = db
-    .prepare(`SELECT id, secret_key FROM stashes WHERE secret_key NOT LIKE '%:%'`)
-    .all() as Array<{ id: string; secret_key: string }>;
-
-  if (plaintextKeys.length > 0) {
-    const update = db.prepare(`UPDATE stashes SET secret_key = ? WHERE id = ?`);
-    const migrateAll = db.transaction(() => {
-      for (const row of plaintextKeys) {
-        update.run(encrypt(row.secret_key), row.id);
-      }
-    });
-    migrateAll();
-    console.log(`🔐 Encrypted ${plaintextKeys.length} plaintext secret key(s) in DB.`);
-  }
-}
-
-// One-time migration: encrypt plaintext stash metadata (title, description, file_name).
-// Encrypted values contain ":" (nonce:ciphertext). Plaintext values don't.
-{
-  const { encrypt } = await import('../lib/encryption.js');
-
-  const plaintextMeta = db
-    .prepare(`SELECT id, title, description, file_name FROM stashes WHERE title NOT LIKE '%:%'`)
-    .all() as Array<{ id: string; title: string; description: string | null; file_name: string }>;
-
-  if (plaintextMeta.length > 0) {
-    const update = db.prepare(
-      `UPDATE stashes SET title = ?, description = ?, file_name = ? WHERE id = ?`
-    );
-    const migrateAll = db.transaction(() => {
-      for (const row of plaintextMeta) {
-        update.run(
-          encrypt(row.title),
-          row.description ? encrypt(row.description) : null,
-          encrypt(row.file_name),
-          row.id
+    for (const row of encryptedTokens) {
+      try {
+        decrypt(row.seller_token);
+      } catch {
+        console.error(
+          `❌ TOKEN_ENCRYPTION_KEY cannot decrypt token in payment ${row.id}.\n` +
+            '   Did you rotate the key? Restore the previous key or re-encrypt the rows.'
         );
+        process.exit(1);
+      }
+    }
+  }
+
+  const migrations: Array<{ version: number; name: string; run: () => void }> = [
+    {
+      version: 1,
+      name: 'encrypt plaintext seller tokens',
+      run: () => {
+        const rows = db
+          .prepare(
+            `SELECT id, seller_token FROM payments
+             WHERE seller_token IS NOT NULL AND seller_token LIKE 'cashu%'`
+          )
+          .all() as Array<{ id: string; seller_token: string }>;
+        if (rows.length === 0) return;
+        const update = db.prepare(`UPDATE payments SET seller_token = ? WHERE id = ?`);
+        for (const row of rows) {
+          update.run(encrypt(row.seller_token), row.id);
+        }
+        console.log(`🔐 Encrypted ${rows.length} plaintext seller token(s).`);
+      },
+    },
+    {
+      version: 2,
+      name: 'encrypt plaintext secret keys',
+      run: () => {
+        const rows = db.prepare(`SELECT id, secret_key FROM stashes`).all() as Array<{
+          id: string;
+          secret_key: string;
+        }>;
+        if (rows.length === 0) return;
+        const update = db.prepare(`UPDATE stashes SET secret_key = ? WHERE id = ?`);
+        for (const row of rows) {
+          update.run(encrypt(row.secret_key), row.id);
+        }
+        console.log(`🔐 Encrypted ${rows.length} secret key(s).`);
+      },
+    },
+    {
+      version: 3,
+      name: 'encrypt plaintext stash metadata',
+      run: () => {
+        const rows = db
+          .prepare(`SELECT id, title, description, file_name FROM stashes`)
+          .all() as Array<{
+          id: string;
+          title: string;
+          description: string | null;
+          file_name: string;
+        }>;
+        if (rows.length === 0) return;
+        const update = db.prepare(
+          `UPDATE stashes SET title = ?, description = ?, file_name = ? WHERE id = ?`
+        );
+        for (const row of rows) {
+          update.run(
+            encrypt(row.title),
+            row.description ? encrypt(row.description) : null,
+            encrypt(row.file_name),
+            row.id
+          );
+        }
+        console.log(`🔐 Encrypted metadata for ${rows.length} stash(es).`);
+      },
+    },
+    {
+      version: 4,
+      name: 'encrypt plaintext LN addresses',
+      run: () => {
+        const settings = db
+          .prepare(`SELECT pubkey, ln_address FROM seller_settings WHERE ln_address IS NOT NULL`)
+          .all() as Array<{ pubkey: string; ln_address: string }>;
+        if (settings.length > 0) {
+          const update = db.prepare(`UPDATE seller_settings SET ln_address = ? WHERE pubkey = ?`);
+          for (const row of settings) {
+            update.run(encrypt(row.ln_address), row.pubkey);
+          }
+          console.log(`🔐 Encrypted ${settings.length} LN address(es) in seller_settings.`);
+        }
+
+        const logs = db
+          .prepare(`SELECT id, ln_address FROM settlement_log WHERE ln_address IS NOT NULL`)
+          .all() as Array<{ id: number; ln_address: string }>;
+        if (logs.length > 0) {
+          const update = db.prepare(`UPDATE settlement_log SET ln_address = ? WHERE id = ?`);
+          for (const row of logs) {
+            update.run(encrypt(row.ln_address), row.id);
+          }
+          console.log(`🔐 Encrypted ${logs.length} LN address(es) in settlement_log.`);
+        }
+      },
+    },
+  ];
+
+  // Run pending migrations in a transaction
+  const pending = migrations.filter((m) => m.version > currentVersion);
+  if (pending.length > 0) {
+    const runMigrations = db.transaction(() => {
+      for (const migration of pending) {
+        console.log(`📦 Running migration v${migration.version}: ${migration.name}`);
+        migration.run();
+        db.prepare('UPDATE schema_version SET version = ? WHERE id = 1').run(migration.version);
       }
     });
-    migrateAll();
-    console.log(`🔐 Encrypted metadata for ${plaintextMeta.length} stash(es) in DB.`);
+    runMigrations();
+    console.log(`✅ Migrations complete. Schema version: ${pending[pending.length - 1].version}`);
   }
 }
 

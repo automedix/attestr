@@ -27,7 +27,7 @@ function logSettlement(
     data.amount || null,
     data.fee || null,
     data.net || null,
-    data.lnAddress || null,
+    data.lnAddress ? encrypt(data.lnAddress) : null,
     data.error || null
   );
 }
@@ -46,6 +46,9 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
     if (!settings?.ln_address || !settings.auto_withdraw_threshold) {
       return; // Auto-settlement not configured
     }
+
+    // Decrypt LN address (stored encrypted at rest)
+    const lnAddress = decrypt(settings.ln_address);
 
     // 2. Check current unclaimed balance
     const result = db
@@ -88,12 +91,12 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
     // 4. Resolve LN address: first get fee, then resolve for net amount
     let tempInvoice: string;
     try {
-      tempInvoice = await resolveAddress(settings.ln_address, totalBalance);
+      tempInvoice = await resolveAddress(lnAddress, totalBalance);
     } catch (err) {
       const error = err instanceof Error ? err.message : 'Failed to resolve LN address';
       logSettlement(sellerPubkey, 'failed', {
         amount: totalBalance,
-        lnAddress: settings.ln_address,
+        lnAddress: lnAddress,
         error,
       });
       console.error('Auto-settlement: LN resolve failed:', error);
@@ -105,7 +108,7 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
     if (!tempQuote.success || !tempQuote.feeSats) {
       logSettlement(sellerPubkey, 'failed', {
         amount: totalBalance,
-        lnAddress: settings.ln_address,
+        lnAddress: lnAddress,
         error: 'Failed to get fee estimate from mint',
       });
       return;
@@ -116,7 +119,7 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
       logSettlement(sellerPubkey, 'skipped', {
         amount: totalBalance,
         fee: tempQuote.feeSats,
-        lnAddress: settings.ln_address,
+        lnAddress: lnAddress,
         error: `Balance ${totalBalance} too low to cover ${tempQuote.feeSats} fee`,
       });
       return;
@@ -125,7 +128,7 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
     // Re-resolve for the correct net amount
     let finalInvoice: string;
     try {
-      finalInvoice = await resolveAddress(settings.ln_address, netAmount);
+      finalInvoice = await resolveAddress(lnAddress, netAmount);
     } catch (err) {
       const error =
         err instanceof Error ? err.message : 'Failed to resolve LN address for net amount';
@@ -133,7 +136,7 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
         amount: totalBalance,
         fee: tempQuote.feeSats,
         net: netAmount,
-        lnAddress: settings.ln_address,
+        lnAddress: lnAddress,
         error,
       });
       return;
@@ -150,7 +153,7 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
         amount: totalBalance,
         fee: tempQuote.feeSats,
         net: netAmount,
-        lnAddress: settings.ln_address,
+        lnAddress: lnAddress,
         error: meltResult.error || 'Melt failed (Lightning payment error)',
       });
       return;
@@ -186,11 +189,11 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
       amount: totalBalance,
       fee: tempQuote.feeSats,
       net: netAmount,
-      lnAddress: settings.ln_address,
+      lnAddress: lnAddress,
     });
 
     console.log(
-      `✅ Auto-settlement complete: ${netAmount} sats sent to ${settings.ln_address} ` +
+      `✅ Auto-settlement complete: ${netAmount} sats sent to ${lnAddress} ` +
         `(fee: ${tempQuote.feeSats} sats, ${tokens.length} tokens claimed)`
     );
   } catch (error) {

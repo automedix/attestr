@@ -112,7 +112,7 @@ dashboardRoutes.get('/:pubkey/settlements', async (c) => {
       amountSats: r.amount_sats,
       feeSats: r.fee_sats,
       netSats: r.net_sats,
-      lnAddress: r.ln_address,
+      lnAddress: r.ln_address ? decrypt(r.ln_address) : null,
       error: r.error,
       createdAt: r.created_at,
     }));

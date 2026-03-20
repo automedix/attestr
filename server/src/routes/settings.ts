@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import db from '../db/index.js';
+import { encrypt, decrypt } from '../lib/encryption.js';
 import { tryAutoSettle } from '../lib/autosettle.js';
 import type { AuthVariables } from '../middleware/auth.js';
 import type { SellerSettings, APIResponse } from '../../../shared/types.js';
@@ -16,7 +17,7 @@ settingsRoutes.get('/:pubkey', async (c) => {
       .get(pubkey) as { ln_address: string | null; auto_withdraw_threshold: number } | undefined;
 
     const settings: SellerSettings = {
-      lnAddress: row?.ln_address || '',
+      lnAddress: row?.ln_address ? decrypt(row.ln_address) : '',
       autoWithdrawThreshold: row?.auto_withdraw_threshold || 0,
     };
 
@@ -54,7 +55,7 @@ settingsRoutes.post('/:pubkey', async (c) => {
          ln_address = excluded.ln_address,
          auto_withdraw_threshold = excluded.auto_withdraw_threshold,
          updated_at = unixepoch()`
-    ).run(pubkey, body.lnAddress || null, threshold);
+    ).run(pubkey, body.lnAddress ? encrypt(body.lnAddress) : null, threshold);
 
     // Trigger auto-settlement for any existing unclaimed balance
     tryAutoSettle(pubkey).catch(() => {});

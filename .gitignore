@@ -34,6 +34,9 @@ npm-debug.log*
 # Test coverage
 coverage/
 
+# Claude Code
+.claude/
+
 # Misc
 *.local
 *.db-shm

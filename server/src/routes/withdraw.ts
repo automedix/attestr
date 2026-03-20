@@ -139,7 +139,12 @@ withdrawRoutes.post('/execute', async (c) => {
       db.prepare(
         `INSERT INTO settlement_log (seller_pubkey, status, amount_sats, error, ln_address)
          VALUES (?, 'failed', ?, ?, ?)`
-      ).run(pubkey, totalSats, meltResult.error || 'Lightning withdrawal failed', destination);
+      ).run(
+        pubkey,
+        totalSats,
+        meltResult.error || 'Lightning withdrawal failed',
+        encrypt(destination)
+      );
 
       return c.json<APIResponse<never>>(
         { success: false, error: meltResult.error || 'Lightning withdrawal failed' },
@@ -180,7 +185,7 @@ withdrawRoutes.post('/execute', async (c) => {
     db.prepare(
       `INSERT INTO settlement_log (seller_pubkey, status, amount_sats, fee_sats, net_sats, ln_address)
        VALUES (?, 'success', ?, ?, ?, ?)`
-    ).run(pubkey, totalSats, feeSats, netSats, destination);
+    ).run(pubkey, totalSats, feeSats, netSats, encrypt(destination));
 
     return c.json<APIResponse<WithdrawResponse>>({
       success: true,
