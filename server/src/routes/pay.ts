@@ -180,7 +180,9 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
       ).run(encrypt(swapResult.sellerToken), paymentId);
 
       // Trigger auto-settlement check (fire-and-forget)
-      tryAutoSettle(stash.seller_pubkey).catch(() => {});
+      tryAutoSettle(stash.seller_pubkey).catch((err) =>
+        console.error('Auto-settle failed:', err instanceof Error ? err.message : err)
+      );
 
       return c.json<APIResponse<PayStatusResponse>>({
         success: true,

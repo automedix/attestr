@@ -192,8 +192,11 @@ export async function tryAutoSettle(sellerPubkey: string): Promise<void> {
       lnAddress: lnAddress,
     });
 
+    const redacted = lnAddress.includes('@')
+      ? `***@${lnAddress.slice(lnAddress.indexOf('@') + 1)}`
+      : '***';
     console.log(
-      `✅ Auto-settlement complete: ${netAmount} sats sent to ${lnAddress} ` +
+      `✅ Auto-settlement complete: ${netAmount} sats sent to ${redacted} ` +
         `(fee: ${tempQuote.feeSats} sats, ${tokens.length} tokens claimed)`
     );
   } catch (error) {

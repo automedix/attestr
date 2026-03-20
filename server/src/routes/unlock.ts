@@ -119,7 +119,9 @@ unlockRoutes.post('/:id', async (c) => {
     ).run(encrypt(swapResult.sellerToken), paymentId);
 
     // Trigger auto-settlement check (fire-and-forget)
-    tryAutoSettle(stash.seller_pubkey).catch(() => {});
+    tryAutoSettle(stash.seller_pubkey).catch((err) =>
+      console.error('Auto-settle failed:', err instanceof Error ? err.message : err)
+    );
 
     // Return the secret key and blob URL
     return c.json<APIResponse<UnlockResponse>>({
@@ -127,7 +129,7 @@ unlockRoutes.post('/:id', async (c) => {
       data: {
         secretKey: decrypt(stash.secret_key),
         blobUrl: stash.blob_url,
-        fileName: stash.file_name,
+        fileName: decrypt(stash.file_name),
       },
     });
   } catch (error) {

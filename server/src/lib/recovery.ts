@@ -109,7 +109,9 @@ export async function recoverMintFailures(): Promise<void> {
       console.log(`  ✅ Recovered payment ${row.id} — ${stash.price_sats} sats`);
 
       // Trigger auto-settlement check
-      tryAutoSettle(stash.seller_pubkey).catch(() => {});
+      tryAutoSettle(stash.seller_pubkey).catch((err) =>
+        console.error('Auto-settle failed:', err instanceof Error ? err.message : err)
+      );
     } catch (error) {
       console.error(`  ⚠️ Recovery failed for payment ${row.id}:`, error);
       // Leave as mint_failed — will retry next startup
