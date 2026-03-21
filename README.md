@@ -96,7 +96,7 @@ Working pay-to-unlock marketplace. Server holds encrypted keys and custodies pay
 
 **Next:**
 
-- [ ] Server route + client test suites
+- [x] Server route + client test suites
 - [ ] Stash lifecycle (edit price/description, unpublish/delete)
 - [ ] Fee transparency (warn when withdrawal fee > 10%)
 - [ ] Deployment guide + HTTPS/Tor setup

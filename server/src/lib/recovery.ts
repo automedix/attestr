@@ -83,12 +83,16 @@ export async function recoverMintFailures(): Promise<void> {
         .get(row.stash_id) as { price_sats: number; seller_pubkey: string } | undefined;
 
       if (!stash) {
-        console.error(`⚠️ Stash ${row.stash_id} not found for payment ${row.id} — skipping`);
+        console.error(
+          `⚠️ Stash ${row.stash_id.substring(0, 8)}... not found for payment ${row.id.substring(0, 8)}... — skipping`
+        );
         continue;
       }
 
       const quoteId = row.token_hash;
-      console.log(`  Retrying mint for payment ${row.id} (quote: ${quoteId.substring(0, 8)}...)`);
+      console.log(
+        `  Retrying mint for payment ${row.id.substring(0, 8)}... (quote: ${quoteId.substring(0, 8)}...)`
+      );
 
       // Retry minting tokens from the paid invoice
       const mintedToken = await mintAfterPayment(stash.price_sats, quoteId);
@@ -97,7 +101,9 @@ export async function recoverMintFailures(): Promise<void> {
       const swapResult = await verifyAndSwapToken(mintedToken, stash.price_sats);
 
       if (!swapResult.success || !swapResult.sellerToken) {
-        console.error(`  ❌ Swap failed for payment ${row.id}: ${swapResult.error}`);
+        console.error(
+          `  ❌ Swap failed for payment ${row.id.substring(0, 8)}...: ${swapResult.error}`
+        );
         continue; // Leave as mint_failed — will retry next startup
       }
 
@@ -106,14 +112,14 @@ export async function recoverMintFailures(): Promise<void> {
         `UPDATE payments SET status = 'paid', seller_token = ?, paid_at = unixepoch() WHERE id = ?`
       ).run(encrypt(swapResult.sellerToken), row.id);
 
-      console.log(`  ✅ Recovered payment ${row.id} — ${stash.price_sats} sats`);
+      console.log(`  ✅ Recovered payment ${row.id.substring(0, 8)}... — ${stash.price_sats} sats`);
 
       // Trigger auto-settlement check
       tryAutoSettle(stash.seller_pubkey).catch((err) =>
         console.error('Auto-settle failed:', err instanceof Error ? err.message : err)
       );
     } catch (error) {
-      console.error(`  ⚠️ Recovery failed for payment ${row.id}:`, error);
+      console.error(`  ⚠️ Recovery failed for payment ${row.id.substring(0, 8)}...:`, error);
       // Leave as mint_failed — will retry next startup
     }
   }
