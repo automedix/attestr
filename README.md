@@ -2,32 +2,36 @@
   <img src="client/src/assets/logo.png" alt="Stashu Logo" width="120">
   <h1>Stashu</h1>
   <p>
-    <strong>The Blind Vending Machine for the Sovereign Web</strong>
-  </p>
-
-  <p>
-    <img src="https://img.shields.io/badge/Storage-Blossom-purple" alt="Blossom">
-    <img src="https://img.shields.io/badge/Payment-Cashu_%2B_Lightning-orange" alt="Cashu + Lightning">
-    <img src="https://img.shields.io/badge/Encryption-XChaCha20--Poly1305-blue" alt="XChaCha20-Poly1305">
-    <img src="https://img.shields.io/badge/Auth-NIP--98-blueviolet" alt="NIP-98">
-    <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+    <strong>Sell any file for sats. No accounts. No KYC. No middlemen.</strong>
   </p>
 </div>
 
 ---
 
-## What is Stashu?
+## Why Stashu?
 
-Stashu is a trust-minimized protocol for selling digital files for Bitcoin. No accounts, no KYC, no intermediaries.
+Stashu is a pay-to-unlock file marketplace built on Bitcoin. Buyers pay with Lightning or Cashu ecash. No accounts on either side.
 
-**How it works:**
+- **Near-zero fees** - Lightning routing costs only
+- **Instant settlement** - sellers get paid in seconds
+- **Permissionless** - buyers need nothing, sellers need a Nostr keypair
+- **Microtransactions** - sell a 100-sat preset or a 50,000-sat course
+- **Client-side encryption** - the server never sees your files
+- **Self-hostable** - run your own instance
+- **Open source** - MIT license
 
-1. Seller uploads file → encrypted client-side with XChaCha20-Poly1305 → stored on Blossom
-2. Seller sets price in sats → gets shareable link
-3. Buyer scans Lightning QR or pastes Cashu token → pays → receives decryption key
-4. Buyer downloads and decrypts locally → done
+## How It Works
 
-**Privacy-first:** All encryption happens client-side. The server never sees your files. Sellers are identified by a local Nostr keypair — no emails, no passwords.
+<!-- Excalidraw source: https://excalidraw.com/#json=2ca7AoYvnBQkfSxFIuWww,hmzinQn2W01SGoQqXrCWUg -->
+<div align="center">
+  <img src="docs/how-it-works.png" alt="How Stashu Works" width="700">
+</div>
+
+1. **Seller encrypts** - file is encrypted client-side before leaving the browser. Encrypted blob goes to a Blossom server.
+2. **Seller creates stash** - title, description, price in sats. Gets a shareable link.
+3. **Buyer pays** - scans a Lightning QR code or pastes a Cashu ecash token.
+4. **Buyer receives key** - server verifies payment, returns the decryption key. File downloads and decrypts in-browser.
+5. **Seller gets paid** - earnings settle to seller's Lightning address.
 
 ## Quick Start
 
@@ -38,10 +42,10 @@ npm install
 
 # Configure environment
 cp server/.env.example server/.env
-# ⚠️ server/.env requires TOKEN_ENCRYPTION_KEY — generate one:
+# server/.env requires TOKEN_ENCRYPTION_KEY, generate one:
 # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-cp client/.env.example client/.env  # Optional — defaults work for local dev
+cp client/.env.example client/.env  # Optional, defaults work for local dev
 
 npm run dev
 ```
@@ -53,94 +57,101 @@ npm run dev
 
 | Layer      | Technology                                |
 | ---------- | ----------------------------------------- |
-| Frontend   | React, Vite, TypeScript, TailwindCSS      |
-| Backend    | Hono, TypeScript                          |
-| Database   | SQLite (better-sqlite3, WAL mode)         |
-| Storage    | Blossom (BUD-02)                          |
-| Encryption | XChaCha20-Poly1305 via `@noble/ciphers`   |
-| Payment    | Cashu + Lightning (LUD-16)                |
+| Frontend   | React 19, Vite, TypeScript, TailwindCSS 4 |
+| Backend    | Hono, TypeScript, better-sqlite3          |
+| Database   | SQLite (WAL mode, foreign keys)           |
+| Storage    | Blossom (BUD-02 protocol)                 |
+| Encryption | XChaCha20-Poly1305 (`@noble/ciphers`)     |
+| Payment    | Cashu ecash + Lightning (LUD-16)          |
 | Identity   | Local Nostr keypair with nsec recovery    |
 | Auth       | NIP-98 HTTP Auth (Nostr event signatures) |
 
 ## Security Model
 
-> **Stashu V1 is a trusted escrow.** Here's what's protected today, what isn't, and what we plan to remove in V2.
+> Stashu V1 is a trusted escrow. The server facilitates payments and holds encrypted data. Here's what's protected, what isn't, and the plan for removing trust in V2.
 
-### What IS encrypted/protected
+### What's protected
 
-- **Files in transit and at rest** — XChaCha20-Poly1305 encryption happens entirely in the browser before upload. Blossom servers and anyone intercepting traffic see only ciphertext.
-- **Sensitive DB columns** — `secret_key`, `title`, `description`, `file_name`, `seller_token`, `ln_address`, and change proof tokens are all encrypted at rest with XChaCha20-Poly1305 (`TOKEN_ENCRYPTION_KEY`). A raw DB dump reveals no plaintext file keys, metadata, or Lightning addresses.
-- **Seller identity** — NIP-98 Schnorr signatures on all seller endpoints. No passwords, no sessions — cryptographic auth only.
-- **Payment integrity** — Quote-to-stash binding prevents cross-stash replay. Atomic processing lock prevents concurrent mint races. Idempotent unlock prevents double-spending.
-- **Rate limiting** — Public endpoints rate-limited (~10–60 req/min). With `TRUSTED_PROXY=1`, limits apply per client IP.
+- **Files in transit and at rest** - XChaCha20-Poly1305 encryption happens entirely in the browser before upload. Blossom servers and anyone intercepting traffic see only ciphertext.
+- **All sensitive DB columns** - `secret_key`, `title`, `description`, `file_name`, `seller_token`, `ln_address`, and change proof tokens are encrypted at rest with XChaCha20-Poly1305. A raw DB dump reveals no plaintext.
+- **Seller identity** - NIP-98 Schnorr signatures on all seller endpoints. No passwords, no sessions, cryptographic auth only.
+- **Payment integrity** - quote-to-stash binding prevents cross-stash replay. Atomic processing lock prevents concurrent mint races. Idempotent unlock prevents double-spending.
+- **Rate limiting** - public endpoints rate-limited (~10-60 req/min). With `TRUSTED_PROXY=1`, limits apply per client IP.
 
-### What is NOT protected (known limitations)
+### Known limitations
 
-| Data                     | Where                | Risk                                                                                                    |
-| ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------- |
-| Nostr private key        | Browser localStorage | XSS could steal nsec — same trade-off as every Nostr web client                                         |
-| All encrypted DB columns | Server env           | `TOKEN_ENCRYPTION_KEY` lives on the same server as the DB. A full server compromise exposes everything. |
-| Seller tokens            | Server DB            | Server custodies Cashu tokens between payment and withdrawal. Operator could theoretically drain funds. |
+| Threat                 | Details                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| XSS key theft          | Nostr private key lives in browser localStorage. Same trade-off as every Nostr web client.               |
+| Full server compromise | `TOKEN_ENCRYPTION_KEY` is co-located with the DB. A root-level compromise exposes all encrypted columns. |
+| Operator fund theft    | Server custodies Cashu tokens between payment and withdrawal. A malicious operator could drain funds.    |
 
-### V2 Roadmap (removing the need to trust the server)
-
-1. **Nostr DM key exchange** — Deliver decryption keys to buyers via NIP-44 encrypted DMs. Server never sees `secret_key`.
-2. **P2PK token swaps** — NUT-11 Pay-to-Public-Key Cashu tokens lock funds to the seller's pubkey. Server facilitates but can't spend.
-3. **Multi-mint support** — Remove single `MINT_URL` dependency.
+V2 addresses these - see [Roadmap](#roadmap) below.
 
 ## Roadmap
 
-### Complete
+### V1: Trusted Escrow (current)
 
-- **Project Setup** — Monorepo, Vite + React + TypeScript, Hono backend, SQLite (WAL), shared types
-- **Seller Flow** — Local Nostr keypair, drag-and-drop upload, client-side encryption, Blossom upload, stash creation with NIP-98 auth
-- **Buyer Flow** — Preview page, Cashu token paste, Lightning QR payment, token verification/swap, decryption key release, client-side decrypt + download
-- **Database** — Stashes, payments, seller settings, settlement log tables with proper indexes
-- **UX** — Recovery token modal, seller dashboard, toast notifications, mobile-responsive, settings page, restore account, Lucide icons
-- **Lightning Withdrawal** — One-click withdrawal, BOLT11 + LN address (LUD-16), token aggregation, fee estimation, settlement history
-- **Lightning Pay** — Invoice QR, mint quote polling, server-side minting, auto-download, expiry countdown, invoice persistence
-- **Auto-Settlement** — Configurable threshold, automatic LN address payout, settlement logging
-- **Security Hardening** — NIP-98 auth on all seller endpoints, rate limiting, anti-replay binding, atomic processing lock, stale quote cleanup, stuck-processing recovery
-- **Encryption at Rest** — All sensitive DB columns encrypted with XChaCha20-Poly1305: file keys, stash metadata, LN addresses, Cashu tokens. Versioned migration system via `schema_version` table.
-- **Payment Recovery** — Change proof persistence + reuse in withdrawals, pending melt tracking, mint failure auto-retry on startup
-- **Infrastructure** — Cashu-ts v3.5.0, Docker + Docker Compose, GitHub Actions CI (build + lint + format), OG meta tags, custom 404 page
-- **Environment Config** — PORT, MINT_URL, DB_PATH, CORS_ORIGINS, VITE_API_URL, VITE_BLOSSOM_URL
+Working pay-to-unlock marketplace. Server holds encrypted keys and custodies payment tokens. Trust-minimized but not trustless.
 
-### Next Up
+**Next:**
 
-- [ ] Fee transparency (warn when fee > 10% of withdrawal)
+- [ ] Server route + client test suites
 - [ ] Stash lifecycle (edit price/description, unpublish/delete)
-- [ ] NIP-99 marketplace event publishing
-- [ ] HTTPS / reverse proxy guide (Caddy)
+- [ ] Fee transparency (warn when withdrawal fee > 10%)
+- [ ] Deployment guide + HTTPS/Tor setup
 
-### Future
+### V2: Trust-Minimized
 
-- [ ] Client-to-buyer key exchange (zero-knowledge file access)
-- [ ] Non-custodial token swaps (remove server custody)
-- [ ] Multiple Cashu mints
-- [ ] WebLN integration
-- [ ] Nostr Wallet Connect
-- [ ] Split payments (revenue share)
-- [ ] Browser-local wallet (move tokens client-side)
-- [ ] NIP-98 payload hash binding
+Remove the server's ability to access file contents or spend seller funds.
+
+- [ ] **NIP-44 key exchange** - seller encrypts the file key to a per-stash ephemeral key. Buyer receives the decryption key via NIP-44 encrypted Nostr DM after payment. The server never sees the plaintext key.
+- [ ] **NUT-11 P2PK tokens** - Pay-to-Public-Key Cashu tokens lock funds to the seller's Nostr pubkey. The server facilitates the swap but cryptographically cannot spend the tokens.
+- [ ] **Multi-mint support** - remove single `MINT_URL` dependency. Buyers and sellers choose their own mints.
 
 ## Development & Testing
 
-Stashu uses Cashu ecash mints for payments. For local development, you'll need access to a mint with real (small amounts of) sats:
+```bash
+# Run everything
+npm run dev
 
-| Mint                 | URL                                      | Notes                         |
-| -------------------- | ---------------------------------------- | ----------------------------- |
-| Minibits             | `https://mint.minibits.cash/Bitcoin`     | Default. Reliable, small fees |
-| LNbits (self-hosted) | `http://localhost:5000/cashu/api/v1/...` | Run your own — full control   |
+# Run only client or server
+npm run dev:client
+npm run dev:server
 
-**Getting test sats:**
+# Build
+npm run build
 
-1. Install [Minibits](https://www.minibits.cash) (mobile) or use [Nutstash](https://nutstash.app) (web)
-2. Receive a small Lightning payment (10-100 sats) from a faucet or friend
-3. Mint Cashu tokens from the Lightning payment
-4. Use those tokens to test the buy flow, or paste invoices for the sell flow
+# Test (server)
+npm run test --workspace=server
 
-> **Tip:** Since Cashu operates on mainnet Lightning, there's no "testnet" mode. Keep test amounts small (10-100 sats). If you want a fully isolated setup, self-host an [LNbits](https://github.com/lnbits/lnbits) instance with the Cashu extension.
+# Lint (client)
+npm run lint --workspace=client
+
+# Format check
+npx prettier --check .
+
+# Docker
+docker compose up --build
+```
+
+### Environment Variables
+
+**Server** (required):
+
+- `TOKEN_ENCRYPTION_KEY` - 64 hex chars. Server refuses to start without it.
+- `MINT_URL` - Cashu mint URL
+- `CORS_ORIGINS` - Allowed origins
+- `DB_PATH` - SQLite database path
+
+**Client** (optional, defaults work for dev):
+
+- `VITE_API_URL` - Server API URL
+- `VITE_BLOSSOM_URL` - Blossom server URL
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, testing, and PR guidelines.
 
 ## License
 
