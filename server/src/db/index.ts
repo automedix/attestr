@@ -178,7 +178,7 @@ function cleanupStaleQuotes() {
 
 // Run cleanup on startup and every 5 minutes
 cleanupStaleQuotes();
-setInterval(cleanupStaleQuotes, 300_000);
+setInterval(cleanupStaleQuotes, 300_000).unref();
 
 // Require TOKEN_ENCRYPTION_KEY — refuse to start without a valid key.
 // Cashu tokens are bearer instruments; running without encryption is a security risk.
