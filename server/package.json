@@ -9,13 +9,13 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@cashu/cashu-ts": "^3.5.0",
-    "@hono/node-server": "^1.8.0",
+    "@cashu/cashu-ts": "^3.6.1",
+    "@hono/node-server": "^1.19.11",
     "@noble/ciphers": "^2.1.1",
     "@noble/curves": "^2.0.1",
     "better-sqlite3": "^11.0.0",
-    "hono": "^4.0.0",
-    "nostr-tools": "^2.23.0",
+    "hono": "^4.12.8",
+    "nostr-tools": "^2.23.3",
     "uuid": "^11.0.0"
   },
   "devDependencies": {
