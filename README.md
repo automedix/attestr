@@ -4,6 +4,11 @@
   <p>
     <strong>Sell any file for sats. No accounts. No KYC. No middlemen.</strong>
   </p>
+  <p>
+    <a href="https://stashu.tech">Website</a> &middot;
+    <a href="#see-it-in-action">Screenshots</a> &middot;
+    <a href="#security-model">Security</a>
+  </p>
 </div>
 
 ---
@@ -32,6 +37,22 @@ Stashu is a pay-to-unlock file marketplace built on Bitcoin. Buyers pay with Lig
 3. **Buyer pays** - scans a Lightning QR code or pastes a Cashu ecash token.
 4. **Buyer receives key** - server verifies payment, returns the decryption key. File downloads and decrypts in-browser.
 5. **Seller gets paid** - earnings settle to seller's Lightning address.
+
+## See It in Action
+
+<div align="center">
+  <img src="docs/screenshot-create-filled.png" alt="Create a Stash" width="600">
+  <p><b>1. Seller creates a stash</b></p>
+  <br>
+  <img src="docs/screenshot-pay.png" alt="Pay with Lightning" width="600">
+  <p><b>2. Buyer pays with Lightning</b></p>
+  <br>
+  <img src="docs/screenshot-unlocked.png" alt="File Unlocked" width="600">
+  <p><b>3. File unlocked, decrypts in-browser</b></p>
+  <br>
+  <img src="docs/screenshot-dashboard.png" alt="Seller Dashboard" width="600">
+  <p><b>4. Seller tracks earnings and withdraws</b></p>
+</div>
 
 ## Quick Start
 
@@ -97,9 +118,9 @@ Working pay-to-unlock marketplace. Server holds encrypted keys and custodies pay
 **Next:**
 
 - [x] Server route + client test suites
+- [x] Deployed to clearnet with HTTPS
 - [ ] Stash lifecycle (edit price/description, unpublish/delete)
 - [ ] Fee transparency (warn when withdrawal fee > 10%)
-- [ ] Deployment guide + HTTPS/Tor setup
 
 ### V2: Trust-Minimized
 
@@ -122,8 +143,9 @@ npm run dev:server
 # Build
 npm run build
 
-# Test (server)
+# Test
 npm run test --workspace=server
+npm run test --workspace=client
 
 # Lint (client)
 npm run lint --workspace=client
