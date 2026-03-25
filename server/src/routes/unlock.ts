@@ -177,8 +177,11 @@ unlockRoutes.get('/:id/claim', rateLimit(60_000, 10, '/api/unlock/claim'), async
   const stashId = c.req.param('id');
   const claimToken = c.req.query('token');
 
-  if (!claimToken) {
-    return c.json<APIResponse<never>>({ success: false, error: 'Missing claim token' }, 400);
+  if (!claimToken || !/^[0-9a-f]{64}$/.test(claimToken)) {
+    return c.json<APIResponse<never>>(
+      { success: false, error: 'Missing or invalid claim token' },
+      400
+    );
   }
 
   const payment = db

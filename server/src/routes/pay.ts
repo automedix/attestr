@@ -12,6 +12,24 @@ import type { PayInvoiceResponse, PayStatusResponse, APIResponse } from '../../.
 import type { StashRow, PaymentRow } from '../db/types.js';
 import { tryAutoSettle } from '../lib/autosettle.js';
 
+function ensureClaimToken(
+  payment: Pick<PaymentRow, 'claim_token' | 'claim_expires_at'>,
+  paymentId: string
+): string {
+  const now = Math.floor(Date.now() / 1000);
+  if (payment.claim_token && payment.claim_expires_at && payment.claim_expires_at >= now) {
+    return payment.claim_token;
+  }
+  const claimToken = randomBytes(32).toString('hex');
+  const claimExpiresAt = now + 3600;
+  db.prepare(`UPDATE payments SET claim_token = ?, claim_expires_at = ? WHERE id = ?`).run(
+    claimToken,
+    claimExpiresAt,
+    paymentId
+  );
+  return claimToken;
+}
+
 export const payRoutes = new Hono();
 
 // POST /api/pay/:id/invoice — Create a Lightning invoice for a stash
@@ -83,22 +101,7 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
         .prepare('SELECT secret_key, blob_url, file_name FROM stashes WHERE id = ?')
         .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'file_name'>;
 
-      // Regenerate claim token if missing or expired
-      let claimToken = existingPayment.claim_token;
-      const now = Math.floor(Date.now() / 1000);
-      if (
-        !claimToken ||
-        !existingPayment.claim_expires_at ||
-        existingPayment.claim_expires_at < now
-      ) {
-        claimToken = randomBytes(32).toString('hex');
-        const claimExpiresAt = now + 3600;
-        db.prepare(`UPDATE payments SET claim_token = ?, claim_expires_at = ? WHERE id = ?`).run(
-          claimToken,
-          claimExpiresAt,
-          paymentId
-        );
-      }
+      const claimToken = ensureClaimToken(existingPayment, paymentId);
 
       return c.json<APIResponse<PayStatusResponse>>({
         success: true,
@@ -139,21 +142,13 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
           .prepare('SELECT secret_key, blob_url, file_name FROM stashes WHERE id = ?')
           .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'file_name'>;
 
-        // Read claim token from the now-paid row
         const paidRow = db
           .prepare('SELECT claim_token, claim_expires_at FROM payments WHERE id = ?')
           .get(paymentId) as Pick<PaymentRow, 'claim_token' | 'claim_expires_at'>;
-        let claimToken = paidRow?.claim_token ?? null;
-        const now = Math.floor(Date.now() / 1000);
-        if (!claimToken || !paidRow?.claim_expires_at || paidRow.claim_expires_at < now) {
-          claimToken = randomBytes(32).toString('hex');
-          const claimExpiresAt = now + 3600;
-          db.prepare(`UPDATE payments SET claim_token = ?, claim_expires_at = ? WHERE id = ?`).run(
-            claimToken,
-            claimExpiresAt,
-            paymentId
-          );
-        }
+        const claimToken = ensureClaimToken(
+          paidRow ?? { claim_token: null, claim_expires_at: null },
+          paymentId
+        );
 
         return c.json<APIResponse<PayStatusResponse>>({
           success: true,
