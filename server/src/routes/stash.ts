@@ -65,13 +65,14 @@ stashRoutes.post('/', async (c) => {
     const id = uuidv4();
 
     const stmt = db.prepare(`
-      INSERT INTO stashes (id, blob_url, secret_key, seller_pubkey, price_sats, title, description, file_name, file_size, preview_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO stashes (id, blob_url, blob_sha256, secret_key, seller_pubkey, price_sats, title, description, file_name, file_size, preview_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
       id,
       body.blobUrl,
+      body.blobSha256 || null,
       encrypt(body.secretKey),
       pubkey, // Use authed pubkey, not body.sellerPubkey (prevents spoofing)
       body.priceSats,

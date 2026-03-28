@@ -350,6 +350,14 @@ const currentVersion = (
         console.log('🎫 Added claim_token and claim_expires_at columns to payments.');
       },
     },
+    {
+      version: 6,
+      name: 'add blob_sha256 column to stashes',
+      run: () => {
+        db.exec(`ALTER TABLE stashes ADD COLUMN blob_sha256 TEXT DEFAULT NULL`);
+        console.log('🔗 Added blob_sha256 column to stashes for BUD-04 mirroring fallback.');
+      },
+    },
   ];
 
   // Run pending migrations in a transaction

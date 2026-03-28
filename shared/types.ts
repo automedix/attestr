@@ -12,6 +12,7 @@ export type APIResponse<T> = { success: true; data: T } | { success: false; erro
 export interface Stash {
   id: string;
   blobUrl: string;
+  blobSha256?: string;
   secretKey: string;
   sellerPubkey: string;
   priceSats: number;
@@ -57,6 +58,7 @@ export interface Payment {
 // POST /api/stash
 export interface CreateStashRequest {
   blobUrl: string;
+  blobSha256?: string;
   secretKey: string;
   sellerPubkey: string;
   priceSats: number;
@@ -80,6 +82,7 @@ export interface UnlockRequest {
 export interface UnlockResponse {
   secretKey: string;
   blobUrl: string;
+  blobSha256?: string;
   fileName: string;
   claimToken?: string;
 }
@@ -143,6 +146,7 @@ export interface PayStatusResponse {
   paid: boolean;
   secretKey?: string;
   blobUrl?: string;
+  blobSha256?: string;
   fileName?: string;
   claimToken?: string;
 }

@@ -29,3 +29,23 @@ export function createBlossomAuthEvent(url: string, sha256hash: string): Verifie
     content: `Upload to ${url}`,
   });
 }
+
+export function createBlossomMirrorAuthEvent(url: string, sha256hash: string): VerifiedEvent {
+  const expiration = Math.floor(Date.now() / 1000) + 300;
+  const tags: string[][] = [
+    // BUD-11 defines PUT /mirror as an `upload`-authorized action.
+    ['t', 'upload'],
+    ['expiration', String(expiration)],
+  ];
+
+  if (sha256hash) {
+    tags.push(['x', sha256hash]);
+  }
+
+  return signEvent({
+    kind: 24242,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: `Mirror to ${url}`,
+  });
+}

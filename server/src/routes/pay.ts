@@ -98,8 +98,8 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
     // Already processed — return the unlock data
     if (existingPayment.status === 'paid') {
       const stash = db
-        .prepare('SELECT secret_key, blob_url, file_name FROM stashes WHERE id = ?')
-        .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'file_name'>;
+        .prepare('SELECT secret_key, blob_url, blob_sha256, file_name FROM stashes WHERE id = ?')
+        .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'blob_sha256' | 'file_name'>;
 
       const claimToken = ensureClaimToken(existingPayment, paymentId);
 
@@ -109,6 +109,7 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
           paid: true,
           secretKey: decrypt(stash.secret_key),
           blobUrl: stash.blob_url,
+          blobSha256: stash.blob_sha256 ?? undefined,
           fileName: decrypt(stash.file_name),
           claimToken,
         },
@@ -139,8 +140,8 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
 
       if (current?.status === 'paid') {
         const stash = db
-          .prepare('SELECT secret_key, blob_url, file_name FROM stashes WHERE id = ?')
-          .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'file_name'>;
+          .prepare('SELECT secret_key, blob_url, blob_sha256, file_name FROM stashes WHERE id = ?')
+          .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'blob_sha256' | 'file_name'>;
 
         const paidRow = db
           .prepare('SELECT claim_token, claim_expires_at FROM payments WHERE id = ?')
@@ -156,6 +157,7 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
             paid: true,
             secretKey: decrypt(stash.secret_key),
             blobUrl: stash.blob_url,
+            blobSha256: stash.blob_sha256 ?? undefined,
             fileName: decrypt(stash.file_name),
             claimToken,
           },
@@ -181,11 +183,17 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
 
     const stash = db
       .prepare(
-        'SELECT id, price_sats, secret_key, blob_url, file_name, seller_pubkey FROM stashes WHERE id = ?'
+        'SELECT id, price_sats, secret_key, blob_url, blob_sha256, file_name, seller_pubkey FROM stashes WHERE id = ?'
       )
       .get(stashId) as Pick<
       StashRow,
-      'id' | 'price_sats' | 'secret_key' | 'blob_url' | 'file_name' | 'seller_pubkey'
+      | 'id'
+      | 'price_sats'
+      | 'secret_key'
+      | 'blob_url'
+      | 'blob_sha256'
+      | 'file_name'
+      | 'seller_pubkey'
     > | null;
 
     if (!stash) {
@@ -234,6 +242,7 @@ payRoutes.get('/:id/status/:quoteId', async (c) => {
           paid: true,
           secretKey: decrypt(stash.secret_key),
           blobUrl: stash.blob_url,
+          blobSha256: stash.blob_sha256 ?? undefined,
           fileName: decrypt(stash.file_name),
           claimToken,
         },
