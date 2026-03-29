@@ -62,6 +62,13 @@ stashRoutes.post('/', async (c) => {
       );
     }
 
+    if (body.blobSha256 && !/^[0-9a-f]{64}$/.test(body.blobSha256)) {
+      return c.json<APIResponse<never>>(
+        { success: false, error: 'blobSha256 must be 64 lowercase hex characters' },
+        400
+      );
+    }
+
     const id = uuidv4();
 
     const stmt = db.prepare(`

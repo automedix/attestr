@@ -535,35 +535,37 @@ export function SettingsPage() {
               </p>
             </div>
 
-            {/* Mirroring toggle */}
-            <div className="flex items-center justify-between py-3 border-t border-slate-700/50 mt-2 mb-3">
-              <div>
-                <p className="text-sm font-medium text-slate-300">Mirror to backup servers</p>
-                <p className="text-slate-500 text-xs mt-0.5">
-                  Copies your file to other Blossom servers so buyers can download even if your
-                  primary server is down.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  const next = !mirroringEnabled;
-                  setMirroringEnabled(next);
-                  setMirroringEnabledState(next);
-                  toast.showToast(next ? 'Mirroring enabled' : 'Mirroring disabled', 'success');
-                }}
-                className={`relative shrink-0 ml-4 w-11 h-6 rounded-full transition-colors ${
-                  mirroringEnabled ? 'bg-cyan-500' : 'bg-slate-600'
-                }`}
-                role="switch"
-                aria-checked={mirroringEnabled}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    mirroringEnabled ? 'translate-x-5' : 'translate-x-0'
+            {/* Mirroring toggle — only show when there are backup servers to mirror to */}
+            {PRESET_BLOSSOM_SERVERS.filter((s) => s.url !== blossomServer).length > 0 && (
+              <div className="flex items-center justify-between py-3 border-t border-slate-700/50 mt-2 mb-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-300">Mirror to backup servers</p>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    Copies your file to other Blossom servers so buyers can download even if your
+                    primary server is down.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !mirroringEnabled;
+                    setMirroringEnabled(next);
+                    setMirroringEnabledState(next);
+                    toast.showToast(next ? 'Mirroring enabled' : 'Mirroring disabled', 'success');
+                  }}
+                  className={`relative shrink-0 ml-4 w-11 h-6 rounded-full transition-colors ${
+                    mirroringEnabled ? 'bg-cyan-500' : 'bg-slate-600'
                   }`}
-                />
-              </button>
-            </div>
+                  role="switch"
+                  aria-checked={mirroringEnabled}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      mirroringEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {/* Hints */}
             <div className="space-y-1.5">

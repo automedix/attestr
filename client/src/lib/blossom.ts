@@ -47,7 +47,7 @@ export function validateBlossomUrl(url: string): { valid: boolean; error?: strin
   if (!trimmed) return { valid: false, error: 'URL is required' };
   try {
     const parsed = new URL(trimmed);
-    if (parsed.protocol !== 'https:' && !trimmed.startsWith('http://localhost')) {
+    if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost') {
       return { valid: false, error: 'Must use HTTPS' };
     }
     return { valid: true };
