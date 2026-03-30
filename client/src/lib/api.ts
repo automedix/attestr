@@ -252,6 +252,46 @@ export async function saveSettings(
 /**
  * Get settlement history for a seller
  */
+/**
+ * Toggle a stash's storefront visibility
+ */
+export async function toggleStashVisibility(
+  stashId: string,
+  showInStorefront: boolean
+): Promise<{ showInStorefront: boolean }> {
+  const url = `${API_BASE}/stash/${stashId}/visibility`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: createAuthHeader(url, 'POST'),
+    },
+    body: JSON.stringify({ showInStorefront }),
+  });
+
+  const result: APIResponse<{ showInStorefront: boolean }> = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  return result.data;
+}
+
+/**
+ * Get all stashes by a seller (public storefront, no auth)
+ */
+export async function getSellerStorefront(pubkey: string): Promise<StashPublicInfo[]> {
+  const response = await fetch(`${API_BASE}/seller/${pubkey}`);
+  const result: APIResponse<StashPublicInfo[]> = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  return result.data;
+}
+
 export async function getSettlements(pubkey: string): Promise<SettlementLogEntry[]> {
   const url = `${API_BASE}/dashboard/${pubkey}/settlements`;
   const response = await fetch(url, {

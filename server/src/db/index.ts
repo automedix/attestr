@@ -358,6 +358,22 @@ const currentVersion = (
         console.log('🔗 Added blob_sha256 column to stashes for BUD-04 mirroring fallback.');
       },
     },
+    {
+      version: 7,
+      name: 'add storefront_enabled to seller_settings',
+      run: () => {
+        db.exec(`ALTER TABLE seller_settings ADD COLUMN storefront_enabled INTEGER DEFAULT 0`);
+        console.log('🏪 Added storefront_enabled column to seller_settings.');
+      },
+    },
+    {
+      version: 8,
+      name: 'add show_in_storefront to stashes',
+      run: () => {
+        db.exec(`ALTER TABLE stashes ADD COLUMN show_in_storefront INTEGER DEFAULT 0`);
+        console.log('🏪 Added show_in_storefront column to stashes.');
+      },
+    },
   ];
 
   // Run pending migrations in a transaction

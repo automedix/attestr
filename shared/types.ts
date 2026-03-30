@@ -100,6 +100,7 @@ export interface SellerStashStats {
   unlockCount: number;
   totalEarned: number;
   createdAt: number;
+  showInStorefront: boolean;
 }
 
 // GET /api/dashboard/:pubkey
@@ -165,6 +166,7 @@ export interface LnAddressResolveResponse {
 export interface SellerSettings {
   lnAddress: string;
   autoWithdrawThreshold: number; // in sats, 0 = disabled
+  storefrontEnabled: boolean;
 }
 
 // GET /api/dashboard/:pubkey/settlements

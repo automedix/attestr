@@ -16,11 +16,12 @@ dashboardRoutes.get('/:pubkey', async (c) => {
     const pubkey = c.get('authedPubkey');
 
     const stashesStmt = db.prepare(`
-      SELECT 
+      SELECT
         s.id,
         s.title,
         s.price_sats,
         s.created_at,
+        s.show_in_storefront,
         COUNT(CASE WHEN p.status = 'paid' THEN 1 END) as unlock_count,
         COALESCE(SUM(CASE WHEN p.status = 'paid' THEN s.price_sats ELSE 0 END), 0) as total_earned
       FROM stashes s
@@ -35,6 +36,7 @@ dashboardRoutes.get('/:pubkey', async (c) => {
       title: string;
       price_sats: number;
       created_at: number;
+      show_in_storefront: number;
       unlock_count: number;
       total_earned: number;
     }>;
@@ -46,6 +48,7 @@ dashboardRoutes.get('/:pubkey', async (c) => {
       unlockCount: row.unlock_count,
       totalEarned: row.total_earned,
       createdAt: row.created_at,
+      showInStorefront: row.show_in_storefront === 1,
     }));
 
     const tokensStmt = db.prepare(`

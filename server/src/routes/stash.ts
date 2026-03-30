@@ -111,6 +111,55 @@ stashRoutes.post('/', async (c) => {
   }
 });
 
+// POST /api/stash/:id/visibility - Toggle storefront visibility (requires NIP-98 auth)
+stashRoutes.post('/:id/visibility', async (c) => {
+  try {
+    const pubkey = c.get('authedPubkey');
+    const id = c.req.param('id');
+
+    let body: { showInStorefront: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json<APIResponse<never>>({ success: false, error: 'Invalid JSON body' }, 400);
+    }
+
+    if (typeof body.showInStorefront !== 'boolean') {
+      return c.json<APIResponse<never>>(
+        { success: false, error: 'showInStorefront must be a boolean' },
+        400
+      );
+    }
+
+    // Verify the stash belongs to this seller
+    const stash = db
+      .prepare('SELECT seller_pubkey, show_in_storefront FROM stashes WHERE id = ?')
+      .get(id) as { seller_pubkey: string; show_in_storefront: number } | null;
+
+    if (!stash) {
+      return c.json<APIResponse<never>>({ success: false, error: 'Stash not found' }, 404);
+    }
+
+    if (stash.seller_pubkey !== pubkey) {
+      return c.json<APIResponse<never>>({ success: false, error: 'Not your stash' }, 403);
+    }
+
+    const newValue = body.showInStorefront ? 1 : 0;
+    db.prepare('UPDATE stashes SET show_in_storefront = ? WHERE id = ?').run(newValue, id);
+
+    return c.json<APIResponse<{ showInStorefront: boolean }>>({
+      success: true,
+      data: { showInStorefront: body.showInStorefront },
+    });
+  } catch (error) {
+    console.error('Error toggling visibility:', error);
+    return c.json<APIResponse<never>>(
+      { success: false, error: 'Failed to update visibility' },
+      500
+    );
+  }
+});
+
 // GET /api/stash/:id - Get public stash info
 stashRoutes.get('/:id', async (c) => {
   try {
