@@ -62,16 +62,24 @@ stashRoutes.post('/', async (c) => {
       );
     }
 
+    if (body.blobSha256 && !/^[0-9a-f]{64}$/.test(body.blobSha256)) {
+      return c.json<APIResponse<never>>(
+        { success: false, error: 'blobSha256 must be 64 lowercase hex characters' },
+        400
+      );
+    }
+
     const id = uuidv4();
 
     const stmt = db.prepare(`
-      INSERT INTO stashes (id, blob_url, secret_key, seller_pubkey, price_sats, title, description, file_name, file_size, preview_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO stashes (id, blob_url, blob_sha256, secret_key, seller_pubkey, price_sats, title, description, file_name, file_size, preview_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
       id,
       body.blobUrl,
+      body.blobSha256 || null,
       encrypt(body.secretKey),
       pubkey, // Use authed pubkey, not body.sellerPubkey (prevents spoofing)
       body.priceSats,

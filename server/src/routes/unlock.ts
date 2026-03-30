@@ -28,12 +28,18 @@ unlockRoutes.post('/:id', async (c) => {
 
     // Get stash details
     const stashStmt = db.prepare(`
-      SELECT id, blob_url, secret_key, file_name, price_sats, seller_pubkey 
+      SELECT id, blob_url, blob_sha256, secret_key, file_name, price_sats, seller_pubkey
       FROM stashes WHERE id = ?
     `);
     const stash = stashStmt.get(stashId) as Pick<
       StashRow,
-      'id' | 'blob_url' | 'secret_key' | 'file_name' | 'price_sats' | 'seller_pubkey'
+      | 'id'
+      | 'blob_url'
+      | 'blob_sha256'
+      | 'secret_key'
+      | 'file_name'
+      | 'price_sats'
+      | 'seller_pubkey'
     > | null;
 
     if (!stash) {
@@ -79,6 +85,7 @@ unlockRoutes.post('/:id', async (c) => {
           data: {
             secretKey: decrypt(stash.secret_key),
             blobUrl: stash.blob_url,
+            blobSha256: stash.blob_sha256 ?? undefined,
             fileName: decrypt(stash.file_name),
             claimToken,
           },
@@ -156,6 +163,7 @@ unlockRoutes.post('/:id', async (c) => {
       data: {
         secretKey: decrypt(stash.secret_key),
         blobUrl: stash.blob_url,
+        blobSha256: stash.blob_sha256 ?? undefined,
         fileName: decrypt(stash.file_name),
         claimToken,
       },
@@ -199,8 +207,8 @@ unlockRoutes.get('/:id/claim', rateLimit(60_000, 10, '/api/unlock/claim'), async
   }
 
   const stash = db
-    .prepare('SELECT secret_key, blob_url, file_name FROM stashes WHERE id = ?')
-    .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'file_name'> | null;
+    .prepare('SELECT secret_key, blob_url, blob_sha256, file_name FROM stashes WHERE id = ?')
+    .get(stashId) as Pick<StashRow, 'secret_key' | 'blob_url' | 'blob_sha256' | 'file_name'> | null;
 
   if (!stash) {
     return c.json<APIResponse<never>>({ success: false, error: 'Stash not found' }, 404);
@@ -211,6 +219,7 @@ unlockRoutes.get('/:id/claim', rateLimit(60_000, 10, '/api/unlock/claim'), async
     data: {
       secretKey: decrypt(stash.secret_key),
       blobUrl: stash.blob_url,
+      blobSha256: stash.blob_sha256 ?? undefined,
       fileName: decrypt(stash.file_name),
     },
   });

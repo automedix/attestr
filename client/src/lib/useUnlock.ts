@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { getStashInfo, unlockStash, claimStash } from './api';
 import { decryptFile, fromBase64 } from './crypto';
-import { fetchFromBlossom } from './blossom';
+import { fetchFromBlossomWithFallback } from './blossom';
 import type { StashPublicInfo } from '../../../shared/types';
 
 export type UnlockStatus =
@@ -31,10 +31,15 @@ export function useUnlock(stashId: string) {
   });
 
   const decryptAndFinish = useCallback(
-    async (data: { secretKey: string; blobUrl: string; fileName?: string }) => {
+    async (data: {
+      secretKey: string;
+      blobUrl: string;
+      blobSha256?: string;
+      fileName?: string;
+    }) => {
       setState((s) => ({ ...s, status: 'decrypting', error: null }));
 
-      const ciphertext = await fetchFromBlossom(data.blobUrl);
+      const ciphertext = await fetchFromBlossomWithFallback(data.blobUrl, data.blobSha256);
 
       const [nonceB64, keyB64] = data.secretKey.split(':');
       if (!nonceB64 || !keyB64) {
@@ -138,6 +143,7 @@ export function useUnlock(stashId: string) {
     async (data: {
       secretKey: string;
       blobUrl: string;
+      blobSha256?: string;
       fileName?: string;
       claimToken?: string;
     }) => {

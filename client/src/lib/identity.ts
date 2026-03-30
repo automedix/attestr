@@ -114,4 +114,6 @@ export function acknowledgeRecovery(): void {
 export function clearIdentity(): void {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem('stashu_identity_ack');
+  localStorage.removeItem('stashu_blossom_server');
+  localStorage.removeItem('stashu_blossom_mirroring');
 }

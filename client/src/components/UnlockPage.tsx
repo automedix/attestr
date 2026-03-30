@@ -64,7 +64,13 @@ export function UnlockPage() {
   }, []);
 
   const handleLnUnlock = useCallback(
-    (data: { secretKey: string; blobUrl: string; fileName?: string; claimToken?: string }) => {
+    (data: {
+      secretKey: string;
+      blobUrl: string;
+      blobSha256?: string;
+      fileName?: string;
+      claimToken?: string;
+    }) => {
       unlock.submitLightningResult(data);
     },
     [unlock]
@@ -114,6 +120,7 @@ export function UnlockPage() {
             handleLnUnlock({
               secretKey: status.secretKey,
               blobUrl: status.blobUrl,
+              blobSha256: status.blobSha256,
               fileName: status.fileName,
               claimToken: status.claimToken,
             });

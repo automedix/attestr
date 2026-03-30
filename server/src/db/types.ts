@@ -10,6 +10,7 @@
 export interface StashRow {
   id: string;
   blob_url: string;
+  blob_sha256: string | null;
   secret_key: string; // encrypted
   key_backup: string | null;
   seller_pubkey: string;
