@@ -7,3 +7,4 @@ export { ToastProvider } from './Toast';
 export { useToast } from './useToast';
 export { RecoveryTokenModal } from './RecoveryTokenModal';
 export { SettingsPage } from './SettingsPage';
+export { StorefrontPage } from './StorefrontPage';

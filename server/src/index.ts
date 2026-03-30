@@ -9,6 +9,7 @@ import { dashboardRoutes } from './routes/dashboard.js';
 import { withdrawRoutes } from './routes/withdraw.js';
 import { payRoutes } from './routes/pay.js';
 import { settingsRoutes } from './routes/settings.js';
+import { sellerRoutes } from './routes/seller.js';
 import { requireAuth } from './middleware/auth.js';
 import { rateLimit } from './middleware/ratelimit.js';
 
@@ -53,7 +54,12 @@ app.route('/api/pay', payRoutes);
 // Stash routes — GET is public (buyer preview), POST requires auth (prevents spoofing)
 app.use('/api/stash/*', rateLimit(60_000, 10)); // 10 req/min
 app.post('/api/stash', requireAuth); // Auth only on creation, not preview
+app.post('/api/stash/:id/visibility', requireAuth); // Auth on visibility toggle
 app.route('/api/stash', stashRoutes);
+
+// Seller storefront — public, no auth
+app.use('/api/seller/*', rateLimit(60_000, 30)); // 30 req/min
+app.route('/api/seller', sellerRoutes);
 
 // Protected API routes (require Nostr signature)
 app.use('/api/earnings/*', requireAuth);

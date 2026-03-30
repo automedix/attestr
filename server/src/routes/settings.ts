@@ -13,12 +13,17 @@ settingsRoutes.get('/:pubkey', async (c) => {
     const pubkey = c.get('authedPubkey');
 
     const row = db
-      .prepare('SELECT ln_address, auto_withdraw_threshold FROM seller_settings WHERE pubkey = ?')
-      .get(pubkey) as { ln_address: string | null; auto_withdraw_threshold: number } | undefined;
+      .prepare(
+        'SELECT ln_address, auto_withdraw_threshold, storefront_enabled FROM seller_settings WHERE pubkey = ?'
+      )
+      .get(pubkey) as
+      | { ln_address: string | null; auto_withdraw_threshold: number; storefront_enabled: number }
+      | undefined;
 
     const settings: SellerSettings = {
       lnAddress: row?.ln_address ? decrypt(row.ln_address) : '',
       autoWithdrawThreshold: row?.auto_withdraw_threshold || 0,
+      storefrontEnabled: row?.storefront_enabled === 1,
     };
 
     return c.json<APIResponse<SellerSettings>>({
@@ -48,14 +53,17 @@ settingsRoutes.post('/:pubkey', async (c) => {
     // Validate threshold
     const threshold = Math.max(0, Math.floor(body.autoWithdrawThreshold || 0));
 
+    const storefrontEnabled = body.storefrontEnabled ? 1 : 0;
+
     db.prepare(
-      `INSERT INTO seller_settings (pubkey, ln_address, auto_withdraw_threshold, updated_at)
-       VALUES (?, ?, ?, unixepoch())
+      `INSERT INTO seller_settings (pubkey, ln_address, auto_withdraw_threshold, storefront_enabled, updated_at)
+       VALUES (?, ?, ?, ?, unixepoch())
        ON CONFLICT(pubkey) DO UPDATE SET
          ln_address = excluded.ln_address,
          auto_withdraw_threshold = excluded.auto_withdraw_threshold,
+         storefront_enabled = excluded.storefront_enabled,
          updated_at = unixepoch()`
-    ).run(pubkey, body.lnAddress ? encrypt(body.lnAddress) : null, threshold);
+    ).run(pubkey, body.lnAddress ? encrypt(body.lnAddress) : null, threshold, storefrontEnabled);
 
     // Trigger auto-settlement for any existing unclaimed balance
     tryAutoSettle(pubkey).catch(() => {});
@@ -65,6 +73,7 @@ settingsRoutes.post('/:pubkey', async (c) => {
       data: {
         lnAddress: body.lnAddress || '',
         autoWithdrawThreshold: threshold,
+        storefrontEnabled: body.storefrontEnabled ?? false,
       },
     });
   } catch (error) {

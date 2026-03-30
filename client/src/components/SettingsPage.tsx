@@ -14,6 +14,7 @@ import {
   Save,
   Lightbulb,
   Server,
+  Store,
 } from 'lucide-react';
 import { hasIdentity, getOrCreateIdentity, getPublicKeyHex, clearIdentity } from '../lib/identity';
 import { getSettings, saveSettings } from '../lib/api';
@@ -43,6 +44,8 @@ export function SettingsPage() {
   const [threshold, setThreshold] = useState(0);
   const [savedLnAddress, setSavedLnAddress] = useState('');
   const [savedThreshold, setSavedThreshold] = useState(0);
+  const [storefrontEnabled, setStorefrontEnabled] = useState(false);
+  const [savingStorefront, setSavingStorefront] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [settingsChanged, setSettingsChanged] = useState(false);
@@ -68,6 +71,7 @@ export function SettingsPage() {
         .then((s) => {
           setLnAddress(s.lnAddress);
           setThreshold(s.autoWithdrawThreshold);
+          setStorefrontEnabled(s.storefrontEnabled);
           setSavedLnAddress(s.lnAddress);
           setSavedThreshold(s.autoWithdrawThreshold);
         })
@@ -126,6 +130,7 @@ export function SettingsPage() {
       await saveSettings(pubkey, {
         lnAddress,
         autoWithdrawThreshold: threshold,
+        storefrontEnabled,
       });
       toast.showToast('Settings saved!', 'success');
       setSavedLnAddress(lnAddress);
@@ -166,6 +171,26 @@ export function SettingsPage() {
     setBlossomServerState(normalized);
     setBlossomUrlError('');
     toast.showToast('Blossom server updated', 'success');
+  };
+
+  const handleToggleStorefront = async () => {
+    const newValue = !storefrontEnabled;
+    setSavingStorefront(true);
+    setStorefrontEnabled(newValue);
+    try {
+      const pubkey = getPublicKeyHex();
+      await saveSettings(pubkey, {
+        lnAddress: savedLnAddress,
+        autoWithdrawThreshold: savedThreshold,
+        storefrontEnabled: newValue,
+      });
+      toast.showToast(newValue ? 'Storefront enabled' : 'Storefront disabled', 'success');
+    } catch (err) {
+      setStorefrontEnabled(!newValue); // revert on failure
+      toast.showToast(err instanceof Error ? err.message : 'Failed to update', 'error');
+    } finally {
+      setSavingStorefront(false);
+    }
   };
 
   const thresholdPresets = [100, 500, 1000, 5000, 10000];
@@ -345,6 +370,61 @@ export function SettingsPage() {
         {/* Account Tab */}
         {activeTab === 'account' && (
           <>
+            {/* Public Storefront */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                    <Store className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Public Storefront</h2>
+                    <p className="text-slate-400 text-sm">
+                      Let anyone browse all your stashes from one link.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleStorefront}
+                  disabled={savingStorefront || loadingSettings}
+                  className={`relative w-12 h-7 rounded-full transition-colors ${
+                    savingStorefront ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${storefrontEnabled ? 'bg-violet-500' : 'bg-slate-600'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full transition-transform ${
+                      storefrontEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-700/50">
+                {storefrontEnabled && (
+                  <p className="text-slate-500 text-sm mb-3">
+                    Your storefront:{' '}
+                    <button
+                      onClick={async () => {
+                        const url = `${window.location.origin}/p/${identity.npub}`;
+                        const success = await copyToClipboard(url);
+                        if (success) {
+                          toast.showToast('Storefront link copied!', 'success');
+                        }
+                      }}
+                      className="text-violet-400 hover:text-violet-300 underline transition-colors"
+                    >
+                      {window.location.origin}/p/{identity.npub.slice(0, 12)}…
+                    </button>
+                  </p>
+                )}
+                <div className="p-3 bg-slate-700/30 border border-slate-700/50 rounded-lg">
+                  <p className="text-slate-400 text-xs">
+                    Your storefront URL contains your Nostr public key. Sharing it publicly will
+                    link your Nostr identity to your Stashu presence.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Public Key */}
             <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-6">
               <div className="flex items-center gap-2 mb-4">

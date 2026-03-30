@@ -9,9 +9,10 @@ import {
   Zap,
   History,
   Link as LinkIcon,
+  Store,
 } from 'lucide-react';
-import { getDashboard, getSettlements } from '../lib/api';
-import { getPublicKeyHex, hasIdentity } from '../lib/identity';
+import { getDashboard, getSettlements, toggleStashVisibility } from '../lib/api';
+import { getPublicKeyHex, getOrCreateIdentity, hasIdentity } from '../lib/identity';
 import { useToast } from './useToast';
 import { copyToClipboard } from '../lib/clipboard';
 import { WithdrawModal } from './WithdrawModal';
@@ -247,6 +248,24 @@ export function DashboardPage() {
             <h1 className="text-3xl font-bold text-white">Seller Dashboard</h1>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
+            {data?.storefrontEnabled && (
+              <button
+                onClick={async () => {
+                  const { npub } = getOrCreateIdentity();
+                  const url = `${window.location.origin}/p/${npub}`;
+                  const success = await copyToClipboard(url);
+                  if (success) {
+                    toast.showToast('Storefront link copied!', 'success');
+                  } else {
+                    toast.showToast('Failed to copy link', 'error');
+                  }
+                }}
+                className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
+                title="Copy Storefront Link"
+              >
+                <LinkIcon className="w-5 h-5 text-slate-400" />
+              </button>
+            )}
             <Link
               to="/settings"
               className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
@@ -381,6 +400,39 @@ export function DashboardPage() {
                           <p className="text-slate-500 text-xs">Sats earned</p>
                         </div>
                       </div>
+
+                      <button
+                        onClick={async () => {
+                          const newValue = !stash.showInStorefront;
+                          try {
+                            await toggleStashVisibility(stash.id, newValue);
+                            stash.showInStorefront = newValue;
+                            setData({ ...data! });
+                            toast.showToast(
+                              newValue ? 'Visible in storefront' : 'Hidden from storefront',
+                              'success'
+                            );
+                          } catch {
+                            toast.showToast('Failed to update visibility', 'error');
+                          }
+                        }}
+                        className={`p-2 rounded-lg transition-colors ${
+                          stash.showInStorefront
+                            ? 'bg-violet-500/20 hover:bg-violet-500/30'
+                            : 'bg-slate-700 hover:bg-slate-600'
+                        }`}
+                        title={
+                          stash.showInStorefront
+                            ? 'Visible in storefront — click to hide'
+                            : 'Hidden from storefront — click to show'
+                        }
+                      >
+                        <Store
+                          className={`w-5 h-5 ${
+                            stash.showInStorefront ? 'text-violet-400' : 'text-slate-500'
+                          }`}
+                        />
+                      </button>
 
                       <button
                         onClick={async () => {

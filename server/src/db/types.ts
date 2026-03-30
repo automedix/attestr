@@ -20,6 +20,7 @@ export interface StashRow {
   file_name: string; // encrypted
   file_size: number;
   preview_url: string | null;
+  show_in_storefront: number;
   created_at: number;
 }
 
