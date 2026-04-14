@@ -121,7 +121,7 @@ export function RecoveryTokenModal({ onComplete }: RecoveryTokenModalProps) {
               : 'bg-slate-800 text-slate-500 cursor-not-allowed'
           }`}
         >
-          Continue to Stashu
+          Weiter zu attestr
         </button>
       </div>
     </div>
