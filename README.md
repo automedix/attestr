@@ -1,78 +1,24 @@
+# attestr
+
 <div align="center">
-  <img src="client/src/assets/logo.png" alt="Stashu Logo" width="120">
-  <h1>Stashu</h1>
+  <h1>attestr</h1>
   <p>
-    <strong>Sell any file for sats. No accounts. No KYC. No middlemen.</strong>
+    <strong>Schnelle Bezahlung kostenpflichtiger Atteste per Lightning</strong>
   </p>
   <p>
-    <a href="https://stashu.tech">Website</a> &middot;
-    <a href="#see-it-in-action">Screenshots</a> &middot;
-    <a href="#security-model">Security</a>
+    <a href="https://github.com/automedix/attestr">GitHub</a>
   </p>
 </div>
 
 ---
 
-## Why Stashu?
+## Über attestr
 
-Stashu is a pay-to-unlock file marketplace built on Bitcoin. Buyers pay with Lightning or Cashu ecash. No accounts on either side.
+attestr ist ein **Fork von [Stashu](https://github.com/keshav0479/Stashu)** – einem Open-Source Pay-to-Unlock File Sharing System von Keshav – und wurde speziell für Bezahlung und Übermittlung von kostenpflichtigen Attesten in Videokonsultationen angepasst.
 
-- **Near-zero fees** - Lightning routing costs only
-- **Instant settlement** - sellers get paid in seconds
-- **Permissionless** - buyers need nothing, sellers need a Nostr keypair
-- **Microtransactions** - sell a 100-sat preset or a 50,000-sat course
-- **Client-side encryption** - the server never sees your files
-- **Self-hostable** - run your own instance
-- **Open source** - MIT license
-
-## How It Works
-
-<!-- Excalidraw source: https://excalidraw.com/#json=2ca7AoYvnBQkfSxFIuWww,hmzinQn2W01SGoQqXrCWUg -->
-<div align="center">
-  <img src="docs/how-it-works.png" alt="How Stashu Works" width="700">
-</div>
-
-1. **Seller encrypts** - file is encrypted client-side before leaving the browser. Encrypted blob goes to a Blossom server.
-2. **Seller creates stash** - title, description, price in sats. Gets a shareable link.
-3. **Buyer pays** - scans a Lightning QR code or pastes a Cashu ecash token.
-4. **Buyer receives key** - server verifies payment, returns the decryption key. File downloads and decrypts in-browser.
-5. **Seller gets paid** - earnings settle to seller's Lightning address.
-
-## See It in Action
-
-<div align="center">
-  <img src="docs/screenshot-create-filled.png" alt="Create a Stash" width="600">
-  <p><b>1. Seller creates a stash</b></p>
-  <br>
-  <img src="docs/screenshot-pay.png" alt="Pay with Lightning" width="600">
-  <p><b>2. Buyer pays with Lightning</b></p>
-  <br>
-  <img src="docs/screenshot-unlocked.png" alt="File Unlocked" width="600">
-  <p><b>3. File unlocked, decrypts in-browser</b></p>
-  <br>
-  <img src="docs/screenshot-dashboard.png" alt="Seller Dashboard" width="600">
-  <p><b>4. Seller tracks earnings and withdraws</b></p>
-</div>
-
-## Quick Start
-
-```bash
-git clone https://github.com/keshav0479/Stashu.git
-cd Stashu
-npm install
-
-# Configure environment
-cp server/.env.example server/.env
-# server/.env requires TOKEN_ENCRYPTION_KEY, generate one:
-# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-cp client/.env.example client/.env  # Optional, defaults work for local dev
-
-npm run dev
-```
-
-- **Client:** http://localhost:5173
-- **Server:** http://localhost:3000
+**Was sich geändert hat:**
+- Spezialisierung auf kostenpflichtige Atteste (statt genereller Dateiverkäufe)
+- Anpassung an Workflows in Arztpraxen
 
 ## Tech Stack
 
@@ -87,48 +33,25 @@ npm run dev
 | Identity   | Local Nostr keypair with nsec recovery    |
 | Auth       | NIP-98 HTTP Auth (Nostr event signatures) |
 
-## Security Model
+## Quick Start
 
-> Stashu V1 is a trusted escrow. The server facilitates payments and holds encrypted data. Here's what's protected, what isn't, and the plan for removing trust in V2.
+```bash
+git clone https://github.com/automedix/attestr.git
+cd attestr
+npm install
 
-### What's protected
+# Configure environment
+cp server/.env.example server/.env
+# server/.env requires TOKEN_ENCRYPTION_KEY, generate one:
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-- **Files in transit and at rest** - XChaCha20-Poly1305 encryption happens entirely in the browser before upload. Blossom servers and anyone intercepting traffic see only ciphertext.
-- **All sensitive DB columns** - `secret_key`, `title`, `description`, `file_name`, `seller_token`, `ln_address`, and change proof tokens are encrypted at rest with XChaCha20-Poly1305. A raw DB dump reveals no plaintext.
-- **Seller identity** - NIP-98 Schnorr signatures on all seller endpoints. No passwords, no sessions, cryptographic auth only.
-- **Payment integrity** - quote-to-stash binding prevents cross-stash replay. Atomic processing lock prevents concurrent mint races. Idempotent unlock prevents double-spending.
-- **Rate limiting** - public endpoints rate-limited (~10-60 req/min). With `TRUSTED_PROXY=1`, limits apply per client IP.
+cp client/.env.example client/.env  # Optional, defaults work for local dev
 
-### Known limitations
+npm run dev
+```
 
-| Threat                 | Details                                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| XSS key theft          | Nostr private key lives in browser localStorage. Same trade-off as every Nostr web client.               |
-| Full server compromise | `TOKEN_ENCRYPTION_KEY` is co-located with the DB. A root-level compromise exposes all encrypted columns. |
-| Operator fund theft    | Server custodies Cashu tokens between payment and withdrawal. A malicious operator could drain funds.    |
-
-V2 addresses these - see [Roadmap](#roadmap) below.
-
-## Roadmap
-
-### V1: Trusted Escrow (current)
-
-Working pay-to-unlock marketplace. Server holds encrypted keys and custodies payment tokens. Trust-minimized but not trustless.
-
-**Next:**
-
-- [x] Server route + client test suites
-- [x] Deployed to clearnet with HTTPS
-- [ ] Stash lifecycle (edit price/description, unpublish/delete)
-- [ ] Fee transparency (warn when withdrawal fee > 10%)
-
-### V2: Trust-Minimized
-
-Remove the server's ability to access file contents or spend seller funds.
-
-- [ ] **NIP-44 key exchange** - seller encrypts the file key to a per-stash ephemeral key. Buyer receives the decryption key via NIP-44 encrypted Nostr DM after payment. The server never sees the plaintext key.
-- [ ] **NUT-11 P2PK tokens** - Pay-to-Public-Key Cashu tokens lock funds to the seller's Nostr pubkey. The server facilitates the swap but cryptographically cannot spend the tokens.
-- [ ] **Multi-mint support** - remove single `MINT_URL` dependency. Buyers and sellers choose their own mints.
+- **Client:** http://localhost:5173
+- **Server:** http://localhost:3000
 
 ## Development & Testing
 
@@ -171,10 +94,8 @@ docker compose up --build
 - `VITE_API_URL` - Server API URL
 - `VITE_BLOSSOM_URL` - Blossom server URL
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, testing, and PR guidelines.
-
 ## License
 
-MIT
+MIT - Siehe [LICENSE](LICENSE)
+
+This project is a fork of [Stashu](https://github.com/keshav0479/Stashu) by Keshav, licensed under MIT.
